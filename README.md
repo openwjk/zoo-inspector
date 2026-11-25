@@ -18,6 +18,9 @@ mvn package -Pbundle-runtime
 ```
 dist/
   zookeeper-dev-ZooInspector.jar
+  ZooInspector.bat    Windows 双击启动器
+  create-shortcut.bat 生成带图标的桌面快捷方式
+  ZooInspector.ico    快捷方式图标
   runtime/            内置 JRE
 ```
 
@@ -61,6 +64,51 @@ Windows cmd / PowerShell 不认 shebang，用配套的 bat：
 ```bash
 .\zooinspector.bat
 ```
+
+**想双击启动**用 `dist\ZooInspector.bat`：它就在 jar 旁边，用 `javaw` 静默启动，不留控制台窗口。
+整个 `dist/` 拷到别的机器上双击即可，有内置 runtime 时不需要装 Java。
+
+```bash
+.\dist\ZooInspector.bat --connect 10.0.0.1:2181/myapp --dark
+```
+
+```bash
+.\dist\ZooInspector.bat --console
+```
+
+`--console` 留在当前控制台里跑，能看到日志与报错；`--help` 自动走控制台。
+两个 bat 找 java 的顺序一致：**内置 runtime → JAVA_HOME → PATH**，都支持 `ZOOINSPECTOR_OPTS`。
+`dist\ZooInspector.bat` 保持纯 ASCII：带中文的 UTF-8 `.bat` 会被 cmd 按字节错位解析，
+`chcp 65001` 也救不回来，所以中文说明只放在本文件里。
+
+### 桌面快捷方式（带图标）
+
+`.bat` 文件本身不能带图标，**只有快捷方式能**。双击 `dist\create-shortcut.bat` 即在桌面
+生成 `ZooInspector.lnk`：
+
+```bash
+.\dist\create-shortcut.bat
+```
+
+```bash
+.\dist\create-shortcut.bat "D:\tools"
+```
+
+- 有内置 runtime（或 `JAVA_HOME`）时，快捷方式**直接指向 `javaw.exe -jar ...`**，
+  连控制台一闪都没有；否则回退到 `ZooInspector.bat`，以最小化方式启动。
+- 工作目录设为 jar 所在目录，配置照样落在同级的 `config\`。
+- 图标取 `dist\ZooInspector.ico`，与程序窗口/任务栏图标同源（`Icons.appImage`），
+  含 16 / 24 / 32 / 48 / 64 / 128 / 256 七个尺寸，全部 32 位带 alpha。
+- 路径通过环境变量传给 PowerShell，不拼进 `-Command` 字符串：
+  结尾带反斜杠的路径紧挨引号会让 PowerShell 解析失败。
+
+改过图标设计后重新生成 `.ico`（先按「本地验证」备好 classpath）：
+
+```bash
+java -cp "target/classes;target/test-classes;$(cat target/cp.txt)" com.zooinspector.dev.IconExport dist/ZooInspector.ico target/shots/icon
+```
+
+第二个参数可选，给了就把各尺寸另存一份 PNG，方便肉眼核对。
 
 `java -jar` 方式同样有效：
 
@@ -239,8 +287,8 @@ src/main/java/com/zooinspector/
 src/main/resources/icons/        25 个 SVG 图标
 src/main/scripts/launch.stub     自执行 jar 的 shell 头
 src/test/java/com/zooinspector/dev/  本地验证工具，不进 fat jar
-zooinspector.bat                 Windows 启动器
-dist/                            mvn package 产出的可执行 jar
+zooinspector.bat                 Windows 命令行启动器
+dist/                            mvn package 产出的可执行 jar + 双击启动器 ZooInspector.bat
 ```
 
 依赖：FlatLaf 3.4.1（+ extras / jsvg）、zookeeper 3.4.14 客户端、slf4j-simple、gson 2.10.1。
@@ -268,6 +316,7 @@ mvn test-compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt -Dmd
 | `OpsCheck` | 22 项写操作与异常路径断言 |
 | `DubboProbe` | 造 Dubbo 形状的树，对比平铺与聚合结果 |
 | `UiHarness` / `GroupUiShot` / `ToastShot` | 界面端到端 + EDT 卡顿看门狗 + 离屏截图 |
+| `IconExport` | 把 `Icons.appImage` 导出成多尺寸 `.ico`，供桌面快捷方式使用 |
 
 **验证时务必加 `-Dzooinspector.config.dir=target/devcfg`**（或 `-Duser.home=target/devhome`），
 让配置落到隔离目录，不要覆盖你自己的连接 profile 与设置。
