@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.zooinspector</groupId>
+  <artifactId>zooinspector</artifactId>
+  <version>2.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>ZooInspector</name>
+  <description>Modern ZooKeeper desktop inspector with instant search</description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <flatlaf.version>3.4.1</flatlaf.version>
+    <zookeeper.version>3.4.14</zookeeper.version>
+    <slf4j.version>1.7.36</slf4j.version>
+    <gson.version>2.10.1</gson.version>
+    <jar.name>zookeeper-dev-ZooInspector</jar.name>
+  </properties>
+
+  <dependencies>
+    <!-- 现代化 Swing 外观 -->
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf</artifactId>
+      <version>${flatlaf.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf-extras</artifactId>
+      <version>${flatlaf.version}</version>
+    </dependency>
+
+    <!-- 3.4.x 客户端：核心操作对 3.4~3.9 服务端都兼容 -->
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper</artifactId>
+      <version>${zookeeper.version}</version>
+      <exclusions>
+        <!-- 默认走 NIO，不需要 Netty 传输 -->
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty</artifactId>
+        </exclusion>
+        <!-- jline 只服务于命令行 ZooKeeperMain -->
+        <exclusion>
+          <groupId>jline</groupId>
+          <artifactId>jline</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-annotations</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+
+    <!-- JSON 美化 -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>${gson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>${jar.name}</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+      </plugin>
+
+      <!-- 打成自包含 fat jar，java -jar 直接运行 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <shadedArtifactAttached>false</shadedArtifactAttached>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>com.zooinspector.ZooInspectorApp</mainClass>
+                  <manifestEntries>
+                    <Implementation-Title>ZooInspector</Implementation-Title>
+                    <Implementation-Version>${project.version}</Implementation-Version>
+                  </manifestEntries>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>module-info.class</exclude>
+                    <exclude>META-INF/versions/*/module-info.class</exclude>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/maven/**</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- 必须排在 shade 之后：同一 phase 内按 pom 声明顺序执行。
+           1) 把启动 stub 拼到 jar 前面 -> 可直接 ./xx.jar 执行
+              （ZIP 从文件尾部定位中央目录，java -jar 依然有效）
+           2) 产出到 dist/，打包完就能跑 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>make-self-executing-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <concat destfile="${project.build.directory}/${jar.name}-exec.jar" binary="true"
+                        force="yes">
+                  <fileset file="${project.basedir}/src/main/scripts/launch.stub"/>
+                  <fileset file="${project.build.directory}/${jar.name}.jar"/>
+                </concat>
+                <move file="${project.build.directory}/${jar.name}-exec.jar"
+                      tofile="${project.build.directory}/${jar.name}.jar" overwrite="true"/>
+                <chmod file="${project.build.directory}/${jar.name}.jar" perm="755"
+                       osfamily="unix"/>
+                <mkdir dir="${project.basedir}/dist"/>
+                <copy file="${project.build.directory}/${jar.name}.jar"
+                      todir="${project.basedir}/dist" overwrite="true"/>
+                <chmod file="${project.basedir}/dist/${jar.name}.jar" perm="755"
+                       osfamily="unix"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!-- mvn package -Pbundle-runtime
+         把一份 JRE 拷进 dist/runtime/，让 dist/ 成为不依赖系统 Java 的绿色目录。
+         默认取构建用的 ${java.home}（JDK 8 下就是它的 jre，约 107 MB）；
+         也可以 -Druntime.src=<任意 JRE 目录> 指定别的运行时。 -->
+    <profile>
+      <id>bundle-runtime</id>
+      <properties>
+        <runtime.src>${java.home}</runtime.src>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>3.1.0</version>
+            <executions>
+              <execution>
+                <id>bundle-runtime</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <echo message="Bundling runtime from ${runtime.src}"/>
+                    <copy todir="${project.basedir}/dist/runtime" preservelastmodified="true">
+                      <fileset dir="${runtime.src}"/>
+                    </copy>
+                    <chmod dir="${project.basedir}/dist/runtime/bin" perm="755"
+                           includes="*" osfamily="unix"/>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

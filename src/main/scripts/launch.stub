@@ -1,0 +1,26 @@
+#!/bin/sh
+# ZooInspector self-executing jar.
+# The real jar bytes follow this script. java -jar still works on this file
+# because ZIP locates its central directory from the end of the file.
+#
+#   ./zookeeper-dev-ZooInspector.jar
+#   ./zookeeper-dev-ZooInspector.jar --connect 10.0.0.1:2181/myapp --dark
+#   ZOOINSPECTOR_OPTS="-Xmx1g" ./zookeeper-dev-ZooInspector.jar
+#
+# Java lookup order: bundled runtime next to this jar -> JAVA_HOME -> PATH.
+# Build with -Pbundle-runtime to get dist/runtime/, then no system Java is needed.
+# If the exec bit is missing after copying to a new machine: chmod +x <jar>
+ZI_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -x "$ZI_DIR/runtime/bin/java" ]; then
+	ZI_JAVA="$ZI_DIR/runtime/bin/java"
+elif [ -x "$ZI_DIR/runtime/bin/java.exe" ]; then
+	ZI_JAVA="$ZI_DIR/runtime/bin/java.exe"
+elif [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+	ZI_JAVA="$JAVA_HOME/bin/java"
+else
+	ZI_JAVA=java
+fi
+exec "$ZI_JAVA" $ZOOINSPECTOR_OPTS -jar "$0" "$@"
+# exec 正常不会返回。留 exit 兜底，并保证 "$@" 后面一定是换行。
+exit 1
+# ---- end of launch stub; jar bytes follow, keep this comment as the last line ----
