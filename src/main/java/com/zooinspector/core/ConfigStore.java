@@ -29,11 +29,25 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
-/** 配置持久化：~/.zooinspector/{settings,profiles}.json */
+/**
+ * 配置持久化。默认落在**启动的 jar 同级的 config/ 目录**，
+ * 这样整个目录拷到别的机器上配置跟着走（绿色便携）。
+ *
+ * <p>位置优先级：
+ * <ol>
+ * <li>{@code -Dzooinspector.config.dir=<path>} 显式指定；
+ * <li>jar（或 classes 目录）同级的 {@code config/}；
+ * <li>该位置不可写时（例如装在 Program Files 下）回退 {@code ~/.zooinspector}。
+ * </ol>
+ *
+ * <p>首次启用新位置时，会把 {@code ~/.zooinspector} 里已有的配置拷过来，
+ * 只补缺失的文件，不覆盖。
+ */
 public final class ConfigStore
 {
 	private static final Charset UTF8 = Charset.forName("UTF-8");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+	private static volatile File resolvedDir;
 
 	private ConfigStore()
 	{
@@ -41,12 +55,122 @@ public final class ConfigStore
 
 	public static File dir()
 	{
-		File f = new File(System.getProperty("user.home"), ".zooinspector");
-		if (!f.isDirectory())
+		File d = resolvedDir;
+		if (d == null)
 		{
-			f.mkdirs();
+			synchronized (ConfigStore.class)
+			{
+				d = resolvedDir;
+				if (d == null)
+				{
+					d = resolveDir();
+					resolvedDir = d;
+				}
+			}
 		}
-		return f;
+		if (!d.isDirectory())
+		{
+			d.mkdirs();
+		}
+		return d;
+	}
+
+	private static File resolveDir()
+	{
+		File legacy = new File(System.getProperty("user.home"), ".zooinspector");
+		String override = System.getProperty("zooinspector.config.dir");
+		File target;
+		if (override != null && !override.trim().isEmpty())
+		{
+			target = new File(override.trim());
+		}
+		else
+		{
+			File appDir = appDir();
+			File portable = appDir == null ? null : new File(appDir, "config");
+			target = portable != null && writable(portable) ? portable : legacy;
+		}
+		if (!target.isDirectory())
+		{
+			target.mkdirs();
+		}
+		migrate(legacy, target);
+		return target;
+	}
+
+	/** 启动物所在目录：jar 取其父目录，classes 目录取自身 */
+	private static File appDir()
+	{
+		try
+		{
+			java.security.CodeSource cs = ConfigStore.class.getProtectionDomain().getCodeSource();
+			if (cs == null || cs.getLocation() == null)
+			{
+				return null;
+			}
+			// 走 URI 而不是 getPath()，路径里的空格/中文才不会被 URL 编码破坏
+			File f = new File(cs.getLocation().toURI());
+			return f.isFile() ? f.getParentFile() : f;
+		}
+		catch (Exception e)
+		{
+			return null;
+		}
+	}
+
+	private static boolean writable(File d)
+	{
+		if (!d.isDirectory() && !d.mkdirs())
+		{
+			return false;
+		}
+		File probe = new File(d, ".write-probe");
+		try
+		{
+			if (!probe.createNewFile())
+			{
+				return false;
+			}
+			probe.delete();
+			return true;
+		}
+		catch (IOException e)
+		{
+			return false;
+		}
+		finally
+		{
+			if (probe.isFile())
+			{
+				probe.delete();
+			}
+		}
+	}
+
+	/** 只补目标目录里缺的文件，绝不覆盖已有配置 */
+	private static void migrate(File from, File to)
+	{
+		if (from.equals(to) || !from.isDirectory())
+		{
+			return;
+		}
+		for (String name : new String[] { "profiles.json", "settings.json" })
+		{
+			File src = new File(from, name);
+			File dst = new File(to, name);
+			if (src.isFile() && !dst.isFile())
+			{
+				try
+				{
+					java.nio.file.Files.copy(src.toPath(), dst.toPath());
+				}
+				catch (IOException e)
+				{
+					System.err.println("[ZooInspector] could not migrate " + src + ": "
+							+ e.getMessage());
+				}
+			}
+		}
 	}
 
 	public static Settings loadSettings()

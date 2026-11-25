@@ -80,6 +80,15 @@ public class SettingsDialog extends JDialog
 		gc.insets = new Insets(8, 0, 4, 0);
 		form.add(indexOnConnect, gc);
 
+		// 告诉用户配置到底落在哪，省得去猜
+		gc.gridy = row;
+		gc.insets = new Insets(10, 0, 2, 0);
+		JLabel location = new JLabel("Config folder: "
+				+ com.zooinspector.core.ConfigStore.dir().getAbsolutePath());
+		location.setFont(Theme.uiFont(11));
+		location.setForeground(Theme.muted());
+		form.add(location, gc);
+
 		JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
 		bottom.setBorder(BorderFactory.createEmptyBorder(6, 18, 14, 18));
 		JButton cancel = new JButton("Cancel");

@@ -227,6 +227,19 @@ public final class UiHarness
 		capture(frame, new File(outDir, theme + "-data-search.png"));
 
 		System.out.println("EDT_MAX_GAP_MS_FINAL=" + maxEdtGap);
+
+		// 中文节点名 / 中文查询：验证字体不是空心方块
+		SwingUtilities.invokeAndWait(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				frame.applySearch("中文", PathIndex.Mode.CONTAINS, false);
+			}
+		});
+		Thread.sleep(900);
+		capture(frame, new File(outDir, theme + "-cjk.png"));
+
 		System.out.println("SHOTS=" + outDir.getAbsolutePath());
 		System.exit(0);
 	}

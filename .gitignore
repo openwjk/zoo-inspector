@@ -4,6 +4,10 @@ target/
 # 内置运行时（-Pbundle-runtime 产出，约 107 MB，不入库）
 dist/runtime/
 
+# 运行时生成的连接配置，可能含凭据，不入库
+dist/config/
+config/
+
 # dist/ 里是 mvn package 产出的可执行 jar，默认随项目走。
 # 不想把二进制放进版本库就取消下面这行的注释。
 # dist/

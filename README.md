@@ -91,8 +91,30 @@ chmod +x dist/zookeeper-dev-ZooInspector.jar
 > Spring Boot 的 executable jar 也是这个做法。`unzip -l` 会提示
 > "extra bytes at beginning"，那是 stub，属正常。
 
-运行时配置存在 `~/.zooinspector/`（连接 profile、主题、字号等）。
-**密码默认不落盘**，只保留在本次运行的内存里，要持久化需在连接对话框显式勾选。
+## 配置存在哪
+
+默认落在**启动的 jar 同级的 `config/` 目录**，所以整个目录拷到别的机器上，连接配置跟着走：
+
+```
+dist/
+  zookeeper-dev-ZooInspector.jar
+  config/
+    profiles.json     连接（地址、超时、认证）
+    settings.json     主题、字号、搜索与索引设置
+  runtime/            内置 JRE（-Pbundle-runtime 才有）
+```
+
+位置优先级：
+
+1. `-Dzooinspector.config.dir=<path>` 显式指定
+2. jar（或 classes 目录）同级的 `config/`
+3. 该位置不可写时（例如装在 `Program Files` 下）回退 `~/.zooinspector`
+
+首次启用新位置会把 `~/.zooinspector` 里已有的配置**拷过来**，只补缺失的文件、不覆盖，
+所以从旧版本升级不会丢连接。设置面板底部会显示当前实际使用的配置目录。
+
+**密码默认不落盘**，只保留在本次运行的内存里；要持久化需在连接对话框显式勾选
+"Remember passwords on disk (plain text)"，而且是明文。`config/` 已加进 `.gitignore`。
 
 ## 快速搜索
 
@@ -247,8 +269,10 @@ mvn test-compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt -Dmd
 | `DubboProbe` | 造 Dubbo 形状的树，对比平铺与聚合结果 |
 | `UiHarness` / `GroupUiShot` / `ToastShot` | 界面端到端 + EDT 卡顿看门狗 + 离屏截图 |
 
-**验证时务必加 `-Duser.home=target/devhome`**，让配置落到隔离目录，
-不要覆盖你自己 `~/.zooinspector/` 里的连接 profile 与设置。
+**验证时务必加 `-Dzooinspector.config.dir=target/devcfg`**（或 `-Duser.home=target/devhome`），
+让配置落到隔离目录，不要覆盖你自己的连接 profile 与设置。
+从 `target/classes` 跑时配置默认就落在 `target/classes/config/`，本身已隔离；
+但直接跑 `dist/` 里的 jar 会写进 `dist/config/`，那种场合一定要显式指定。
 
 示例（Git Bash）：
 

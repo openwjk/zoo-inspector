@@ -149,6 +149,9 @@ public final class SeedData
 		created++;
 		// 一个空节点
 		mkdir(zk, "/empty-node");
+		// 中文节点名：验证 UI 字体能显示 CJK，而不是空心方块
+		mkdir(zk, "/中文配置");
+		put(zk, "/中文配置/订单服务", "{\"名称\":\"订单服务\",\"启用\":true}");
 
 		System.out.println("SEEDED nodes=" + created + " elapsedMs="
 				+ (System.currentTimeMillis() - t0));

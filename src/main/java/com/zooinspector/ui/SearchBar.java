@@ -134,9 +134,17 @@ public class SearchBar extends JPanel
 		JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
 		right.setOpaque(false);
 		clear.setVisible(false);
-		right.add(clear);
+		// 清除按钮只在有输入时出现，但槽位要一直在，否则搜索框会跟着伸缩
+		JPanel clearSlot = new JPanel(new BorderLayout());
+		clearSlot.setOpaque(false);
+		clearSlot.setPreferredSize(new Dimension(28, 28));
+		clearSlot.add(clear, BorderLayout.CENTER);
+		right.add(clearSlot);
 		stats.setFont(Theme.uiFont(11));
 		stats.setForeground(Theme.muted());
+		// 固定宽度：命中数文案变长时不能把中间的搜索框挤短
+		stats.setPreferredSize(new Dimension(240, 18));
+		stats.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
 		right.add(stats);
 
 		JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -222,6 +230,7 @@ public class SearchBar extends JPanel
 	public void setStats(String text)
 	{
 		stats.setText(text);
+		stats.setToolTipText(text == null || text.isEmpty() ? null : text);
 	}
 
 	private void fire()

@@ -664,6 +664,8 @@ public class MainFrame extends JFrame implements TreePanel.Actions, SearchBar.Li
 			searchBar.setStats("");
 			return;
 		}
+		// 统计文案保持定长风格，超出部分交给 tooltip；
+		// 「只展示前 N 条」放到左侧标题，那里有空间，也不影响搜索框宽度
 		StringBuilder sb = new StringBuilder();
 		if (grouped && result.rawTotal > result.total)
 		{
@@ -675,17 +677,15 @@ public class MainFrame extends JFrame implements TreePanel.Actions, SearchBar.Li
 		{
 			sb.append(String.format("%,d", result.total)).append(result.total == 1 ? " hit" : " hits");
 		}
-		if (result.hits.size() < result.total)
-		{
-			sb.append(" · showing ").append(result.hits.size());
-		}
 		sb.append(" · ").append(result.elapsedMs).append(" ms");
 		if (result.partial)
 		{
 			sb.append(" …");
 		}
 		searchBar.setStats(sb.toString());
-		leftTitle.setText("Search results");
+		leftTitle.setText(result.hits.size() < result.total
+				? "Search results · showing " + result.hits.size()
+				: "Search results");
 	}
 
 	private void showResultsCard()
@@ -995,7 +995,7 @@ public class MainFrame extends JFrame implements TreePanel.Actions, SearchBar.Li
 		Toasts.info(this, "Settings applied.");
 	}
 
-	private void showHelp()
+	public void showHelp()
 	{
 		JOptionPane.showMessageDialog(this, "<html><table cellpadding='3'>"
 				+ "<tr><td><b>Ctrl+F</b></td><td>Focus search</td></tr>"

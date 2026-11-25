@@ -70,9 +70,43 @@ public final class Theme
 
 	private static void applyDefaults(int fontSize)
 	{
-		uiFamily = pick(new String[] { "Segoe UI", "Inter", "Noto Sans", "Dialog" });
-		monoFamily = pick(new String[] { "JetBrains Mono", "Cascadia Mono", "Consolas",
-				"DejaVu Sans Mono", "Monospaced" });
+		// Segoe UI / Consolas 这类物理字体不含中日韩字形，Java 对物理字体不做回退，
+		// 中文会渲染成空心方块（JOptionPane 在 zh_CN 下的「确定」按钮就是如此）。
+		// 所以按 locale 选一个覆盖 CJK 的字体；逻辑字体 Monospaced/Dialog 自带回退。
+		String lang = java.util.Locale.getDefault().getLanguage();
+		String[] uiCandidates;
+		String[] monoCandidates;
+		if ("zh".equals(lang))
+		{
+			uiCandidates = new String[] { "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI",
+					"Dialog" };
+			monoCandidates = new String[] { "Sarasa Mono SC", "NSimSun", "Monospaced" };
+		}
+		else if ("ja".equals(lang))
+		{
+			uiCandidates = new String[] { "Yu Gothic UI", "Meiryo", "Segoe UI", "Dialog" };
+			monoCandidates = new String[] { "MS Gothic", "Monospaced" };
+		}
+		else if ("ko".equals(lang))
+		{
+			uiCandidates = new String[] { "Malgun Gothic", "Segoe UI", "Dialog" };
+			monoCandidates = new String[] { "GulimChe", "Monospaced" };
+		}
+		else
+		{
+			uiCandidates = new String[] { "Segoe UI", "Inter", "Noto Sans", "Dialog" };
+			monoCandidates = new String[] { "JetBrains Mono", "Cascadia Mono", "Consolas",
+					"DejaVu Sans Mono", "Monospaced" };
+		}
+		uiFamily = pick(uiCandidates);
+		monoFamily = pick(monoCandidates);
+
+		// 界面文案是英文，但 JOptionPane 的按钮取自 JVM locale，
+		// 中文环境下会冒出「确定/取消」，这里统一成英文。
+		UIManager.put("OptionPane.okButtonText", "OK");
+		UIManager.put("OptionPane.cancelButtonText", "Cancel");
+		UIManager.put("OptionPane.yesButtonText", "Yes");
+		UIManager.put("OptionPane.noButtonText", "No");
 
 		FontUIResource ui = new FontUIResource(uiFamily, Font.PLAIN, fontSize);
 		for (String key : new String[] { "Button.font", "ToggleButton.font", "Label.font",
